@@ -309,11 +309,7 @@ class DualThreadAttack:
         
         # Đợi thêm để game chạy tự nhiên
         print("[THREAD-2] Waiting for game to finish...")
-        time.sleep(5)
-        
-        # Dừng game
-        self.game.stop()
-        print("[THREAD-2] Extraction thread ended")
+
     
     def run(self):
         """Chạy attack với 2 threads"""
@@ -371,9 +367,7 @@ def main():
     # Chạy dual-thread attack
     attack = DualThreadAttack(stego_image)
     attack.run()
-    
-    print("\nPress Enter to exit...")
-    input()
+
 
 if __name__ == '__main__':
     main()
