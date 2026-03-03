@@ -1,7 +1,10 @@
 import piexif
+import exifread
 import os
 import time
+import shutil
 from datetime import datetime
+from PIL import Image
 import platform
 
 def clear_screen():
@@ -21,7 +24,8 @@ def parse_datetime_input(date_str):
             "%Y:%m:%d %H:%M:%S",
             "%Y-%m-%d %H:%M:%S",
             "%d/%m/%Y %H:%M:%S",
-            "%d-%m-%Y %H:%M:%S"
+            "%d-%m-%Y %H:%M:%S",
+            "%Y/%m/%d %H:%M:%S"
         ]
         
         for fmt in formats:
@@ -38,35 +42,36 @@ def parse_datetime_input(date_str):
 def change_datetime_original(exif_dict):
     """Thay đổi ngày giờ chụp ảnh"""
     print("\n" + "="*50)
-    print("THAY ĐỔI NGÀY GIỜ CHỤP ẢNH")
+    print("THAY DOI NGAY GIO CHUP ANH")
     print("="*50)
-    print("Định dạng: YYYY:MM:DD HH:MM:SS hoặc YYYY-MM-DD HH:MM:SS")
-    print("Ví dụ: 2026:12:25 08:30:00 hoặc 2026-12-25 08:30:00")
+    print("Dinh dang: YYYY:MM:DD HH:MM:SS hoac YYYY-MM-DD HH:MM:SS")
+    print("Vi du: 2026:12:25 08:30:00 hoac 2026-12-25 08:30:00")
     
-    date_input = input("\nNhập ngày giờ chụp: ").strip()
+    date_input = input("\nNhap ngay gio chup: ").strip()
     
     parsed_date = parse_datetime_input(date_input)
     if parsed_date:
         exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = parsed_date.encode()
         exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = parsed_date.encode()
         exif_dict["0th"][piexif.ImageIFD.DateTime] = parsed_date.encode()
-        print(f"✅ Đã cập nhật DateTimeOriginal: {parsed_date}")
+        print(f"Da cap nhat DateTimeOriginal: {parsed_date}")
         return parsed_date
     else:
-        print("❌ Định dạng ngày giờ không hợp lệ!")
+        print("Dinh dang ngay gio khong hop le!")
         return None
 
 def change_location(exif_dict):
     """Thay đổi vị trí GPS"""
     print("\n" + "="*50)
-    print("THAY ĐỔI VỊ TRÍ GPS")
+    print("THAY DOI VI TRI GPS")
     print("="*50)
-    print("Nhập tọa độ theo định dạng thập phân")
-    print("Ví dụ: Hà Nội: 21.028511, 105.852180")
+    print("Nhap toa do theo dinh dang thap phan")
+    print("Vi du: Ha Noi: 21.028511, 105.852180")
+    print("       Sydney: -33.8688, 151.2093")
     
     try:
-        latitude = float(input("\nNhập vĩ độ (Latitude): ").strip())
-        longitude = float(input("Nhập kinh độ (Longitude): ").strip())
+        latitude = float(input("\nNhap vi do (Latitude): ").strip())
+        longitude = float(input("Nhap kinh do (Longitude): ").strip())
         
         # Xác định hướng
         lat_ref = b"N" if latitude >= 0 else b"S"
@@ -82,99 +87,100 @@ def change_location(exif_dict):
         exif_dict["GPS"][piexif.GPSIFD.GPSLongitudeRef] = lng_ref
         exif_dict["GPS"][piexif.GPSIFD.GPSLongitude] = [lng_rational, (0, 1), (0, 1)]
         
-        print(f"✅ Đã cập nhật GPS: {latitude}, {longitude}")
+        print(f"Da cap nhat GPS: {latitude}, {longitude}")
+        print(f"Huong: {lat_ref.decode()}, {lng_ref.decode()}")
         return True
     except ValueError:
-        print("❌ Tọa độ không hợp lệ!")
+        print("Toa do khong hop le!")
         return False
 
 def change_camera_info(exif_dict):
     """Thay đổi thông tin máy ảnh"""
     print("\n" + "="*50)
-    print("THAY ĐỔI THÔNG TIN MÁY ẢNH")
+    print("THAY DOI THONG TIN MAY ANH")
     print("="*50)
     
-    make = input("Nhập hãng máy ảnh (Make) [Enter để bỏ qua]: ").strip()
+    make = input("Nhap hang may anh (Make) [Enter de bo qua]: ").strip()
     if make:
         exif_dict["0th"][piexif.ImageIFD.Make] = make.encode()
-        print(f"✅ Đã cập nhật Make: {make}")
+        print(f"Da cap nhat Make: {make}")
     
-    model = input("Nhập model máy ảnh (Model) [Enter để bỏ qua]: ").strip()
+    model = input("Nhap model may anh (Model) [Enter de bo qua]: ").strip()
     if model:
         exif_dict["0th"][piexif.ImageIFD.Model] = model.encode()
-        print(f"✅ Đã cập nhật Model: {model}")
+        print(f"Da cap nhat Model: {model}")
     
-    lens = input("Nhập tên ống kính (LensModel) [Enter để bỏ qua]: ").strip()
+    lens = input("Nhap ten ong kinh (LensModel) [Enter de bo qua]: ").strip()
     if lens:
         exif_dict["Exif"][piexif.ExifIFD.LensModel] = lens.encode()
-        print(f"✅ Đã cập nhật LensModel: {lens}")
+        print(f"Da cap nhat LensModel: {lens}")
     
     return True
 
 def change_camera_settings(exif_dict):
     """Thay đổi thông số chụp"""
     print("\n" + "="*50)
-    print("THAY ĐỔI THÔNG SỐ CHỤP")
+    print("THAY DOI THONG SO CHUP")
     print("="*50)
     
     try:
         # ISO
-        iso = input("Nhập ISO [Enter để bỏ qua]: ").strip()
+        iso = input("Nhap ISO (vi du: 100, 400, 800) [Enter de bo qua]: ").strip()
         if iso:
             exif_dict["Exif"][piexif.ExifIFD.ISOSpeedRatings] = int(iso)
-            print(f"✅ Đã cập nhật ISO: {iso}")
+            print(f"Da cap nhat ISO: {iso}")
         
         # Khẩu độ (F-number)
-        fnumber = input("Nhập khẩu độ (ví dụ: 2.8) [Enter để bỏ qua]: ").strip()
+        fnumber = input("Nhap khau do (vi du: 2.8, 5.6, 11) [Enter de bo qua]: ").strip()
         if fnumber:
             f_val = float(fnumber)
             exif_dict["Exif"][piexif.ExifIFD.FNumber] = (int(f_val * 10), 10)
-            print(f"✅ Đã cập nhật F-number: f/{fnumber}")
+            print(f"Da cap nhat F-number: f/{fnumber}")
         
         # Tốc độ màn trập
-        shutter = input("Nhập tốc độ màn trập (ví dụ: 200 cho 1/200s) [Enter để bỏ qua]: ").strip()
+        shutter = input("Nhap toc do man trap (vi du: 200 cho 1/200s) [Enter de bo qua]: ").strip()
         if shutter:
             exif_dict["Exif"][piexif.ExifIFD.ExposureTime] = (1, int(shutter))
-            print(f"✅ Đã cập nhật ExposureTime: 1/{shutter}s")
+            print(f"Da cap nhat ExposureTime: 1/{shutter}s")
         
         # Tiêu cự
-        focal = input("Nhập tiêu cự (mm) [Enter để bỏ qua]: ").strip()
+        focal = input("Nhap tieu cu (mm) [Enter de bo qua]: ").strip()
         if focal:
             exif_dict["Exif"][piexif.ExifIFD.FocalLength] = (int(focal), 1)
-            print(f"✅ Đã cập nhật FocalLength: {focal}mm")
+            print(f"Da cap nhat FocalLength: {focal}mm")
         
         return True
     except ValueError:
-        print("❌ Giá trị không hợp lệ!")
+        print("Gia tri khong hop le!")
         return False
 
 def change_author_info(exif_dict):
     """Thay đổi thông tin tác giả"""
     print("\n" + "="*50)
-    print("THAY ĐỔI THÔNG TIN TÁC GIẢ")
+    print("THAY DOI THONG TIN TAC GIA")
     print("="*50)
     
-    artist = input("Nhập tên tác giả (Artist) [Enter để bỏ qua]: ").strip()
+    artist = input("Nhap ten tac gia (Artist) [Enter de bo qua]: ").strip()
     if artist:
         exif_dict["0th"][piexif.ImageIFD.Artist] = artist.encode()
-        print(f"✅ Đã cập nhật Artist: {artist}")
+        print(f"Da cap nhat Artist: {artist}")
     
-    copyright_text = input("Nhập thông tin bản quyền (Copyright) [Enter để bỏ qua]: ").strip()
+    copyright_text = input("Nhap thong tin ban quyen (Copyright) [Enter de bo qua]: ").strip()
     if copyright_text:
         exif_dict["0th"][piexif.ImageIFD.Copyright] = copyright_text.encode()
-        print(f"✅ Đã cập nhật Copyright: {copyright_text}")
+        print(f"Da cap nhat Copyright: {copyright_text}")
     
-    software = input("Nhập phần mềm chỉnh sửa (Software) [Enter để bỏ qua]: ").strip()
+    software = input("Nhap phan mem chinh sua (Software) [Enter de bo qua]: ").strip()
     if software:
         exif_dict["0th"][piexif.ImageIFD.Software] = software.encode()
-        print(f"✅ Đã cập nhật Software: {software}")
+        print(f"Da cap nhat Software: {software}")
     
     return True
 
 def change_file_dates(filename, datetime_str):
     """Thay đổi ngày giờ của file hệ thống"""
     print("\n" + "="*50)
-    print("THAY ĐỔI NGÀY GIỜ FILE HỆ THỐNG")
+    print("THAY DOI NGAY GIO FILE HE THONG")
     print("="*50)
     
     try:
@@ -185,7 +191,7 @@ def change_file_dates(filename, datetime_str):
         # Thay đổi access time và modified time
         os.utime(filename, (timestamp, timestamp))
         
-        print(f"✅ Đã cập nhật thời gian file:")
+        print(f"Da cap nhat thoi gian file:")
         print(f"   - File Modified Date: {datetime_str}")
         print(f"   - File Access Date: {datetime_str}")
         
@@ -193,69 +199,245 @@ def change_file_dates(filename, datetime_str):
         if platform.system() != "Windows":
             print(f"   - File Inode Change Date: {datetime_str}")
         else:
-            print("   ⚠️ FileInodeChangeDate không thể thay đổi trên Windows")
+            print("   Luu y: FileInodeChangeDate khong the thay doi tren Windows")
         
         return True
     except Exception as e:
-        print(f"❌ Lỗi khi thay đổi ngày giờ file: {e}")
+        print(f"Loi khi thay doi ngay gio file: {e}")
         return False
 
-def view_current_exif(exif_dict):
-    """Xem EXIF hiện tại"""
-    print("\n" + "="*50)
-    print("THÔNG TIN EXIF HIỆN TẠI")
-    print("="*50)
+def view_current_exif(filename):
+    """Xem EXIF hiện tại với exifread - chi tiết và đầy đủ"""
+    print("\n" + "="*80)
+    print("THONG TIN EXIF CHI TIET")
+    print("="*80)
     
-    # Thông tin máy ảnh
-    print("\n📷 THÔNG TIN MÁY ẢNH:")
-    if piexif.ImageIFD.Make in exif_dict["0th"]:
-        print(f"   Make: {exif_dict['0th'][piexif.ImageIFD.Make].decode()}")
-    if piexif.ImageIFD.Model in exif_dict["0th"]:
-        print(f"   Model: {exif_dict['0th'][piexif.ImageIFD.Model].decode()}")
+    try:
+        with open(filename, 'rb') as f:
+            tags = exifread.process_file(f, details=True)
+        
+        if not tags:
+            print("\nKhong tim thay du lieu EXIF trong file!")
+            input("\nNhan Enter de tiep tuc...")
+            return
+        
+        print(f"\nFile: {filename}")
+        print(f"Tong so EXIF tags: {len(tags)}")
+        print("="*80)
+        
+        # Nhóm 1: THÔNG TIN FILE CƠ BẢN
+        print("\n[1] THONG TIN FILE CO BAN")
+        print("-"*80)
+        file_stats = os.stat(filename)
+        print(f"Kich thuoc file: {file_stats.st_size} bytes ({file_stats.st_size / 1024:.2f} KB)")
+        print(f"Ngay tao file: {datetime.fromtimestamp(file_stats.st_ctime).strftime('%Y:%m:%d %H:%M:%S')}")
+        print(f"Ngay sua doi: {datetime.fromtimestamp(file_stats.st_mtime).strftime('%Y:%m:%d %H:%M:%S')}")
+        print(f"Ngay truy cap: {datetime.fromtimestamp(file_stats.st_atime).strftime('%Y:%m:%d %H:%M:%S')}")
+        
+        # Nhóm 2: THÔNG TIN HÌNH ẢNH
+        print("\n[2] THONG TIN HINH ANH")
+        print("-"*80)
+        image_tags = {
+            'Image Make': 'Hang san xuat',
+            'Image Model': 'Model may anh',
+            'Image Orientation': 'Huong anh',
+            'Image XResolution': 'Do phan giai X',
+            'Image YResolution': 'Do phan giai Y',
+            'Image ResolutionUnit': 'Don vi do phan giai',
+            'Image Software': 'Phan mem',
+            'Image DateTime': 'Ngay gio chinh sua',
+            'Image Artist': 'Tac gia',
+            'Image Copyright': 'Ban quyen',
+            'Image ExifOffset': 'EXIF Offset',
+        }
+        
+        for tag, label in image_tags.items():
+            if tag in tags:
+                print(f"{label:30s}: {tags[tag]}")
+        
+        # Nhóm 3: THÔNG SỐ CHỤP ẢNH (EXIF)
+        print("\n[3] THONG SO CHUP ANH")
+        print("-"*80)
+        exif_tags = {
+            'EXIF DateTimeOriginal': 'Ngay gio chup goc',
+            'EXIF DateTimeDigitized': 'Ngay gio so hoa',
+            'EXIF ExposureTime': 'Toc do man trap',
+            'EXIF FNumber': 'Khau do',
+            'EXIF ExposureProgram': 'Chuong trinh phoi sang',
+            'EXIF ISOSpeedRatings': 'ISO',
+            'EXIF ShutterSpeedValue': 'Gia tri toc do man trap',
+            'EXIF ApertureValue': 'Gia tri khau do',
+            'EXIF BrightnessValue': 'Do sang',
+            'EXIF ExposureBiasValue': 'Bu phoi sang',
+            'EXIF MaxApertureValue': 'Khau do toi da',
+            'EXIF MeteringMode': 'Che do do sang',
+            'EXIF Flash': 'Den flash',
+            'EXIF FocalLength': 'Tieu cu',
+            'EXIF ColorSpace': 'Khong gian mau',
+            'EXIF ExifImageWidth': 'Chieu rong anh',
+            'EXIF ExifImageLength': 'Chieu cao anh',
+            'EXIF FocalPlaneXResolution': 'Do phan giai mat phang X',
+            'EXIF FocalPlaneYResolution': 'Do phan giai mat phang Y',
+            'EXIF FocalPlaneResolutionUnit': 'Don vi do phan giai',
+            'EXIF ExposureMode': 'Che do phoi sang',
+            'EXIF WhiteBalance': 'Can bang trang',
+            'EXIF SceneCaptureType': 'Loai canh chup',
+            'EXIF Contrast': 'Do tuong phan',
+            'EXIF Saturation': 'Do bao hoa',
+            'EXIF Sharpness': 'Do sac net',
+        }
+        
+        for tag, label in exif_tags.items():
+            if tag in tags:
+                print(f"{label:30s}: {tags[tag]}")
+        
+        # Nhóm 4: THÔNG TIN ỐNG KÍNH
+        print("\n[4] THONG TIN ONG KINH")
+        print("-"*80)
+        lens_tags = {
+            'EXIF LensSpecification': 'Thong so ong kinh',
+            'EXIF LensMake': 'Hang ong kinh',
+            'EXIF LensModel': 'Model ong kinh',
+            'EXIF LensSerialNumber': 'Serial ong kinh',
+        }
+        
+        lens_found = False
+        for tag, label in lens_tags.items():
+            if tag in tags:
+                print(f"{label:30s}: {tags[tag]}")
+                lens_found = True
+        
+        if not lens_found:
+            print("Khong co thong tin ong kinh")
+        
+        # Nhóm 5: THÔNG TIN GPS
+        print("\n[5] THONG TIN VI TRI GPS")
+        print("-"*80)
+        gps_tags = {
+            'GPS GPSVersionID': 'Phien ban GPS',
+            'GPS GPSLatitudeRef': 'Tham chieu vi do',
+            'GPS GPSLatitude': 'Vi do',
+            'GPS GPSLongitudeRef': 'Tham chieu kinh do',
+            'GPS GPSLongitude': 'Kinh do',
+            'GPS GPSAltitudeRef': 'Tham chieu do cao',
+            'GPS GPSAltitude': 'Do cao',
+            'GPS GPSTimeStamp': 'Thoi gian GPS',
+            'GPS GPSSpeedRef': 'Don vi toc do',
+            'GPS GPSSpeed': 'Toc do',
+            'GPS GPSImgDirectionRef': 'Tham chieu huong anh',
+            'GPS GPSImgDirection': 'Huong anh',
+            'GPS GPSDestBearingRef': 'Tham chieu phuong vi',
+            'GPS GPSDestBearing': 'Phuong vi',
+            'GPS GPSDateStamp': 'Ngay GPS',
+        }
+        
+        gps_found = False
+        for tag, label in gps_tags.items():
+            if tag in tags:
+                print(f"{label:30s}: {tags[tag]}")
+                gps_found = True
+        
+        if not gps_found:
+            print("Khong co thong tin GPS")
+        
+        # Nhóm 6: THÔNG TIN THUMBNAIL
+        print("\n[6] THONG TIN THUMBNAIL")
+        print("-"*80)
+        thumbnail_tags = {
+            'Thumbnail Compression': 'Nen thumbnail',
+            'Thumbnail XResolution': 'Do phan giai X',
+            'Thumbnail YResolution': 'Do phan giai Y',
+            'Thumbnail ResolutionUnit': 'Don vi do phan giai',
+            'Thumbnail JPEGInterchangeFormat': 'Dinh dang JPEG',
+            'Thumbnail JPEGInterchangeFormatLength': 'Do dai JPEG',
+        }
+        
+        thumbnail_found = False
+        for tag, label in thumbnail_tags.items():
+            if tag in tags:
+                print(f"{label:30s}: {tags[tag]}")
+                thumbnail_found = True
+        
+        if not thumbnail_found:
+            print("Khong co thong tin thumbnail")
+        
+        # Nhóm 7: THÔNG TIN MAKERNOTE (Nếu có)
+        print("\n[7] THONG TIN MAKERNOTE")
+        print("-"*80)
+        makernote_found = False
+        for tag in tags:
+            if 'MakerNote' in tag or tag.startswith('Image Tag '):
+                print(f"{tag:30s}: {tags[tag]}")
+                makernote_found = True
+        
+        if not makernote_found:
+            print("Khong co thong tin MakerNote")
+        
+        # Nhóm 8: CÁC TAG KHÁC
+        print("\n[8] CAC TAG KHAC")
+        print("-"*80)
+        
+        displayed_tags = set()
+        for tag_dict in [image_tags, exif_tags, lens_tags, gps_tags, thumbnail_tags]:
+            displayed_tags.update(tag_dict.keys())
+        
+        other_tags_found = False
+        for tag in sorted(tags.keys()):
+            if (tag not in displayed_tags and 
+                not tag.startswith('MakerNote') and 
+                not tag.startswith('Image Tag ') and
+                tag not in ['JPEGThumbnail', 'TIFFThumbnail']):
+                print(f"{tag:30s}: {tags[tag]}")
+                other_tags_found = True
+        
+        if not other_tags_found:
+            print("Khong co tag khac")
+        
+        print("\n" + "="*80)
+        print("HOAN THANH HIEN THI EXIF")
+        print("="*80)
+        
+    except FileNotFoundError:
+        print(f"\nLoi: Khong tim thay file {filename}")
+    except Exception as e:
+        print(f"\nLoi khi doc EXIF: {e}")
     
-    # Thông số chụp
-    print("\n⚙️ THÔNG SỐ CHỤP:")
-    if piexif.ExifIFD.DateTimeOriginal in exif_dict["Exif"]:
-        print(f"   DateTimeOriginal: {exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal].decode()}")
-    if piexif.ExifIFD.ISOSpeedRatings in exif_dict["Exif"]:
-        print(f"   ISO: {exif_dict['Exif'][piexif.ExifIFD.ISOSpeedRatings]}")
-    if piexif.ExifIFD.FNumber in exif_dict["Exif"]:
-        f_val = exif_dict['Exif'][piexif.ExifIFD.FNumber]
-        print(f"   F-number: f/{f_val[0]/f_val[1]}")
-    
-    # GPS
-    print("\n📍 VỊ TRÍ GPS:")
-    if piexif.GPSIFD.GPSLatitude in exif_dict["GPS"]:
-        lat = exif_dict["GPS"][piexif.GPSIFD.GPSLatitude][0]
-        lat_ref = exif_dict["GPS"][piexif.GPSIFD.GPSLatitudeRef].decode()
-        print(f"   Latitude: {lat[0]/lat[1]} {lat_ref}")
-    if piexif.GPSIFD.GPSLongitude in exif_dict["GPS"]:
-        lng = exif_dict["GPS"][piexif.GPSIFD.GPSLongitude][0]
-        lng_ref = exif_dict["GPS"][piexif.GPSIFD.GPSLongitudeRef].decode()
-        print(f"   Longitude: {lng[0]/lng[1]} {lng_ref}")
-    
-    input("\nNhấn Enter để tiếp tục...")
+    input("\nNhan Enter de tiep tuc...")
 
 def save_changes(filename, exif_dict):
-    """Lưu thay đổi vào file"""
+    """Lưu thay đổi - ghi đè trực tiếp lên file gốc"""
     try:
         exif_bytes = piexif.dump(exif_dict)
         piexif.insert(exif_bytes, filename)
-        print("\n✅ Đã lưu tất cả thay đổi vào file!")
+        print(f"\nDa luu thanh cong vao file: {filename}")
         return True
     except Exception as e:
-        print(f"\n❌ Lỗi khi lưu file: {e}")
+        print(f"\nLoi khi luu file: {e}")
         return False
 
 def main_menu():
     """Menu chính"""
-    filename = "11-tests.jpg"
+    print("""
+    ╔════════════════════════════════════════════════════════════╗
+    ║   CHUONG TRINH CHINH SUA EXIF METADATA                     ║
+    ╚════════════════════════════════════════════════════════════╝
+    """)
     
-    # Kiểm tra file tồn tại
-    if not os.path.exists(filename):
-        print(f"❌ Không tìm thấy file: {filename}")
-        print("Vui lòng đảm bảo file ảnh nằm trong cùng thư mục với script này.")
+    # Nhập đường dẫn ảnh
+    duong_dan_anh = input("Nhap duong dan file anh can chinh sua: ").strip()
+    
+    # Xóa dấu ngoặc kép nếu có (khi kéo thả file)
+    duong_dan_anh = duong_dan_anh.strip('"').strip("'")
+    
+    if not os.path.exists(duong_dan_anh):
+        print(f"Loi: File {duong_dan_anh} khong ton tai!")
+        print("\nHuong dan:")
+        print("1. Dat anh vao thu muc hien tai")
+        print("2. Nhap ten file (vi du: image.jpg)")
+        print("3. Hoac nhap duong dan day du")
         return
+    
+    filename = duong_dan_anh
     
     # Tải EXIF hiện có
     try:
@@ -268,68 +450,70 @@ def main_menu():
     while True:
         clear_screen()
         print("="*50)
-        print("        CHỈNH SỬA EXIF METADATA")
+        print("        CHINH SUA EXIF METADATA")
         print("="*50)
-        print(f"File: {filename}")
+        print(f"File: {os.path.basename(filename)}")
+        print(f"Duong dan: {filename}")
         print("="*50)
-        print("\nChọn thao tác:")
-        print("1. Thay đổi ngày giờ chụp ảnh (DateTimeOriginal)")
-        print("2. Thay đổi vị trí GPS (Location)")
-        print("3. Thay đổi thông tin máy ảnh (Make, Model, Lens)")
-        print("4. Thay đổi thông số chụp (ISO, F-number, Shutter, Focal Length)")
-        print("5. Thay đổi thông tin tác giả (Artist, Copyright, Software)")
-        print("6. Đồng bộ ngày giờ file với DateTimeOriginal")
-        print("7. Xem thông tin EXIF hiện tại")
-        print("8. Lưu tất cả thay đổi")
-        print("0. Thoát")
+        print("\nChon thao tac:")
+        print("1. Thay doi ngay gio chup anh (DateTimeOriginal)")
+        print("2. Thay doi vi tri GPS (Location)")
+        print("3. Thay doi thong tin may anh (Make, Model, Lens)")
+        print("4. Thay doi thong so chup (ISO, F-number, Shutter, Focal Length)")
+        print("5. Thay doi thong tin tac gia (Artist, Copyright, Software)")
+        print("6. Dong bo ngay gio file voi DateTimeOriginal")
+        print("7. Xem thong tin EXIF hien tai")
+        print("8. Luu tat ca thay doi")
+        print("0. Thoat")
         print("="*50)
         
-        choice = input("\nNhập lựa chọn của bạn: ").strip()
+        choice = input("\nNhap lua chon cua ban: ").strip()
         
         if choice == "1":
             result = change_datetime_original(exif_dict)
             if result:
                 datetime_original = result
-            input("\nNhấn Enter để tiếp tục...")
+            input("\nNhan Enter de tiep tuc...")
             
         elif choice == "2":
             change_location(exif_dict)
-            input("\nNhấn Enter để tiếp tục...")
+            input("\nNhan Enter de tiep tuc...")
             
         elif choice == "3":
             change_camera_info(exif_dict)
-            input("\nNhấn Enter để tiếp tục...")
+            input("\nNhan Enter de tiep tuc...")
             
         elif choice == "4":
             change_camera_settings(exif_dict)
-            input("\nNhấn Enter để tiếp tục...")
+            input("\nNhan Enter de tiep tuc...")
             
         elif choice == "5":
             change_author_info(exif_dict)
-            input("\nNhấn Enter để tiếp tục...")
+            input("\nNhan Enter de tiep tuc...")
             
         elif choice == "6":
             if datetime_original:
                 change_file_dates(filename, datetime_original)
             else:
-                print("\n⚠️ Vui lòng thiết lập DateTimeOriginal trước (Chọn 1)")
-            input("\nNhấn Enter để tiếp tục...")
+                print("\nVui long thiet lap DateTimeOriginal truoc (Chon 1)")
+            input("\nNhan Enter de tiep tuc...")
             
         elif choice == "7":
-            view_current_exif(exif_dict)
+            # Xem EXIF chi tiết
+            view_current_exif(filename)
             
         elif choice == "8":
             if save_changes(filename, exif_dict):
-                print("Tất cả thay đổi đã được lưu thành công!")
-            input("\nNhấn Enter để tiếp tục...")
+                print("Hoan tat!")
+            input("\nNhan Enter de tiep tuc...")
             
         elif choice == "0":
-            print("\n👋 Cảm ơn bạn đã sử dụng chương trình!")
+            print("\nCam on ban da su dung chuong trinh!")
             break
             
         else:
-            print("\n❌ Lựa chọn không hợp lệ!")
-            input("\nNhấn Enter để tiếp tục...")
+            print("\nLua chon khong hop le!")
+            input("\nNhan Enter de tiep tuc...")
 
 if __name__ == "__main__":
     main_menu()
