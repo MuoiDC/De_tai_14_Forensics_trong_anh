@@ -424,20 +424,7 @@ def main_menu():
     """)
     
     # Nhập đường dẫn ảnh
-    duong_dan_anh = input("Nhap duong dan file anh can chinh sua: ").strip()
-    
-    # Xóa dấu ngoặc kép nếu có (khi kéo thả file)
-    duong_dan_anh = duong_dan_anh.strip('"').strip("'")
-    
-    if not os.path.exists(duong_dan_anh):
-        print(f"Loi: File {duong_dan_anh} khong ton tai!")
-        print("\nHuong dan:")
-        print("1. Dat anh vao thu muc hien tai")
-        print("2. Nhap ten file (vi du: image.jpg)")
-        print("3. Hoac nhap duong dan day du")
-        return
-    
-    filename = duong_dan_anh
+    filename = input("Nhap duong dan file anh can chinh sua: ").strip()
     
     # Tải EXIF hiện có
     try:
@@ -516,4 +503,5 @@ def main_menu():
             input("\nNhan Enter de tiep tuc...")
 
 if __name__ == "__main__":
+
     main_menu()
